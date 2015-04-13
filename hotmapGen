@@ -1,0 +1,253 @@
+--Developed by Laney Network Technologies for use with M-Tech Operating System. Any other use without consent of the owning party is prohibited.
+
+if (fs.exists("/sys/frameworks/kernel.frmk")) then os.loadAPI("/sys/frameworks/kernel.frmk") else error("Missing kernel!") end
+kernel = _G["kernel.frmk"]
+
+local ui = kernel.import("/sys/frameworks/CUIKit.frmk")
+
+local name = ""
+local ranged = ""
+local funcLoc = ""
+local pts = {}
+
+function getRight(sText)
+	local nWidth = term.getSize()
+	local x = nWidth - string.len(sText)
+	return x + 1,string.len(sText)
+end
+
+function recordZones(single)
+	term.setBackgroundColor(colors.black)
+	x = 0
+	y = 0
+	local og = {}
+	og[1] = 0
+	og[2] = 0
+	local global = ui.new.hotmap()
+
+	if not single then
+		
+		local cLoc = {}
+		cLoc[1] = 0
+		cLoc[2] = 0
+		while true do
+			
+
+			term.setBackgroundColor( colors.black )
+			term.clear()
+			paintutils.drawPixel( x, y, colors.red )
+
+			local pt = ui.new.hotpoint(og[1],og[2],nil,true,cLoc[1],cLoc[2])
+			local hm = ui.new.hotmap()
+	  		hm:AddPoint(pt)
+
+	  		ui.sketchZones(hm,false,true)
+
+			event, button, xPos, yPos = os.pullEvent()
+			
+			if event == "mouse_drag" and button == 1 then -- left button was clicked
+			  	if x==0 and y==0 then
+			  		og[1] = xPos
+			  		og[2] = yPos
+			  	end
+			  	cLoc = {}
+			  	table.insert(cLoc,xPos)
+			  	table.insert(cLoc,yPos)
+			  	x = xPos
+			  	y = yPos
+		    elseif event == "key" and button == 28 then
+		    	if pt.sX ~=0 then 
+			  		table.insert(pts,pt)
+			  		global:AddPoint(pt)
+			  	end
+			  	og[1]=0
+				og[2]=0
+				x=0
+				y=0
+				cLoc[1] = 0
+				cLoc[2] = 0
+				p = {os.pullEvent()}
+				pt = nil
+			  	if p[2] == 28 then
+			  		break
+			  	end
+			elseif event == "key" and button == 32 then
+			 	table.remove(pts)
+		  		table.remove(global.points)
+	  		elseif event =="key" and button == 25 then
+	  			ui.sketchZones(global,false,false)
+	  			os.pullEvent("key")
+			elseif event == "key" and button == 14 then
+				og[1]=0
+				og[2]=0
+				cLoc[1] = 0
+				cLoc[2] = 0
+				x=0
+				y=0
+		  	end
+		end
+	else
+		while true do
+			term.setBackgroundColor( colors.black )
+			term.clear()
+			paintutils.drawPixel( x, y, colors.red )
+
+			local pt = ui.new.hotpoint(og[1],og[2],function() end,false)
+			local hm = ui.new.hotmap()
+	  		hm:AddPoint(pt)
+	  		ui.sketchZones(hm,false,true)
+			
+			event, button, xPos, yPos = os.pullEvent()
+			if event == "mouse_click" and button == 1 then -- left button was clicked
+			  	if x==0 and y==0 then
+			  		og = {}
+			  		og[1] = xPos
+			  		og[2] = yPos
+			  	end
+
+			  	x = xPos
+			  	y = yPos
+			 elseif event == "key" and button == 28 then
+			  	p = {os.pullEvent("key")}
+			  	table.insert(pts,pt)
+			  	og[1]=0
+				og[2]=0
+				x=0
+				y=0
+				ui.col = nil
+			  	if p[2] == 28 then
+			  		break
+			  	end
+			elseif event == "key" and button == 14 then
+				og[1]=0
+				og[2]=0
+				x=0
+				y=0
+		  	end
+		end
+	end
+end
+
+ recordZones() --Problem resides within
+
+ local info = {}
+ local gmap = ui.new.hotmap()
+ function prep(g)
+
+info.sel = 1
+info.ptPage = false
+for k,v in pairs(pts) do
+	(g or gmap):AddPoint(v)
+end
+
+local stat,errMap = ui.checkOverlapDependency((g or gmap))
+if not stat then
+
+	(g or gmap).overlapMap = errMap
+	-- if #gmap.overlapMap.points > 0 then
+	-- 	info.warn = "<Display Errors>  Overlapping Dependency"
+	-- end
+else
+	(g or gmap).overlapMap.points = {} 
+end
+end
+prep()
+
+local mx,my = term.getSize()
+function postComplete()
+	if #gmap.overlapMap.points > 0 then
+			info.warn = "<Display Errors>  Overlapping Dependency"
+	end
+	os.queueEvent("init_update",#pts,textutils.serialize(pts),info.warn,textutils.serialize(gmap.overlapMap.points),textutils.serialize(gmap))
+	while true do
+		if #gmap.overlapMap.points > 0 then
+			info.warn = "<Display Errors>  Overlapping Dependency"
+		else
+			info.warn = nil
+		end
+		term.setBackgroundColor(colors.gray)
+		term.clear()
+		term.setCursorPos(1,1)
+		print("Hot map complete. Finish configuration below:")
+		term.setCursorPos(1,3)
+		print("Number of points/zones: "..#pts)
+		print("Save name: "..(info.name or ""))
+		print()
+		print("For each zone, click the () to modify settings for that zone/point. When complete hit finish.")
+		term.setBackgroundColor(colors.lightBlue)
+		print()
+		print("()")  
+		term.setBackgroundColor(colors.gray)
+		print()
+		print("Zone: "..info.sel.. " <>")
+		print()
+		print()
+		print()
+		print("Warnings: "..(info.warn or "none"))
+		term.setCursorPos(1,my)
+		term.write("Map")
+		term.setBackgroundColor(colors.blue)
+		term.setCursorPos(1,my)
+		term.write("Map")
+		term.setCursorPos(6,my)
+		term.write("Edit Map")
+		local x = getRight("Finish")
+		term.setCursorPos(x,my)
+		term.write("Finish")
+		if info.ptPage == false then
+			p = {os.pullEvent("update")}
+			info = textutils.unserialize(p[2])
+			if gmap ~= info.zones then
+				gmap = info.zones
+			end
+		end
+
+		if info.ptPage == true then
+			while true do 
+				term.setBackgroundColor(colors.gray)
+				term.clear()
+				term.setCursorPos(1,1)
+				print("Configuring zone: "..info.sel)
+				term.setCursorPos(1,3)
+				print("Map: <Display Map>")
+				print("Function: <Function>")
+				print()
+				print("Origin X: "..info.pointData[info.sel].sX)
+				print("Origin Y: "..info.pointData[info.sel].sY)
+				print("Ranged?: "..tostring(info.pointData[info.sel].iRange))
+				print("End X: "..info.pointData[info.sel].eX)
+				print("End Y: "..info.pointData[info.sel].eY)  
+				term.setBackgroundColor(colors.gray)
+				print()
+				local x = getRight("Finish")
+				term.setCursorPos(x,my)
+				term.setBackgroundColor(colors.blue)
+				term.write("Finish")
+				term.setCursorPos(1,my)
+				term.write("Back")
+				term.setCursorPos((mx/2)-1,my)
+				term.write("<= =>")
+				p = {os.pullEvent("update")}
+				info = textutils.unserialize(p[2])
+				if gmap ~= info.zones then
+					gmap = info.zones
+				end
+				break
+			end
+		end
+		if info.update then
+			recordZones(false)
+			prep(gmap)
+		end
+	end
+end
+
+local stat,err = pcall(function() local app = kernel.AppContainer({postComplete,function() shell.run("/sys/lib/events/evHotClick.lib") end},{})
+	app:AddSandboxDefinition()
+app:StartContainer()end)
+
+error(err)
+
+term.setBackgroundColor(colors.black)
+term.clear()
+term.setCursorPos(1,1)
