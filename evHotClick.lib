@@ -1,0 +1,312 @@
+--Developed by Laney Network Technologies for use with M-Tech Operating System. Any other use without consent of the owning party is prohibited.
+function import(path)
+	if fs.exists(path) then
+		prog =""
+		os.loadAPI(path)
+		if path:find("/") < 0 then prog = path
+		else
+			path = path:reverse()
+			a,b = path:find("/")
+			prog = string.sub(path,0,a-1)
+			prog = prog:reverse()
+		end
+		return _G[prog]
+	else
+		error("Referenced: "..path.."; not found") 
+	end
+end
+
+local info = {}
+local pointMap = ui.new.hotmap()
+local photmap = ui.new.hotmap()
+info.sel = 1
+info.ptPage = false
+ui = import("/sys/frameworks/CUIKit.frmk")
+local activeMap = nil
+
+function setName()
+	term.setCursorPos(12,4)
+	local input = read()
+
+	info.name = input
+	local handle = fs.open("mapData","w")
+	os.queueEvent("update",textutils.serialize(info))
+end
+
+function incSel()
+	if info.sel+1 > info.count then
+		os.queueEvent("update",textutils.serialize(info))
+	else
+		info.sel = info.sel+1
+		os.queueEvent("update",textutils.serialize(info))
+	end
+end
+
+function decSel()
+	if info.sel-1 < 1 then
+		os.queueEvent("update",textutils.serialize(info))
+	else
+		info.sel = info.sel-1
+		os.queueEvent("update",textutils.serialize(info))
+	end
+end
+
+function confSelect()
+	info.ptPage = true
+	os.queueEvent("update",textutils.serialize(info))
+	activeMap = pointMap
+end
+
+function goBack()
+	info.ptPage = false
+	os.queueEvent("update",textutils.serialize(info))
+	activeMap = photmap
+end
+
+function displayMap( ... )
+	local temp = ui.new.hotmap()
+	temp:AddPoint(info.pointData[info.sel])
+	term.setBackgroundColor(colors.black)
+	term.clear()
+	ui.sketchZones(temp)
+	os.pullEvent("key")
+	os.queueEvent("update",textutils.serialize(info))
+end
+
+function editFunction( ... )
+	shell.run("edit","tempFuncZone"..info.sel)
+	info.pointData[info.sel].func = "tempFuncZone"..info.sel
+	os.queueEvent("update",textutils.serialize(info))
+end
+
+function editOrgX( ... )
+	term.setCursorPos(11,6)
+	local input = read()
+	if (input ~= "") then
+		local b,s = string.find(input,"@max")
+
+		if (b or 0) > 0 then
+			local mx,my = term.getSize()
+			input = input:gsub("@max","")
+			if input:len() > 0 then
+				if type(tonumber(input)) == "number" then
+					if not ((mx + input) > mx) then
+						info.pointData[info.sel].sX = mx + input
+					end
+				end
+			else
+				info.pointData[info.sel].sX= mx
+			end
+		else
+			if type(tonumber(input)) == "number" then
+				info.pointData[info.sel].sX = input
+			end
+		end
+	end
+	r,info.zones.overlapMap = ui.checkOverlapDependency(info.zones)
+	os.queueEvent("update",textutils.serialize(info))
+end
+
+function editOrgY()
+	term.setCursorPos(11,7)
+	local input = read()
+	if (input ~= "") then
+		local b,s = string.find(input,"@max")
+		if (b or 0) > 0 then
+			local mx,my = term.getSize()
+			input = input:gsub("@max","")
+			if input:len() > 0 then
+				if type(tonumber(input)) == "number" then
+					if not ((my + input) > my) then
+						info.pointData[info.sel].sY = my + input
+					end
+				end
+			else
+				info.pointData[info.sel].sY= my
+			end
+		else
+			if type(tonumber(input)) == "number" then
+				info.pointData[info.sel].sY = input
+			end
+		end
+		
+	end
+	r,info.zones.overlapMap = ui.checkOverlapDependency(info.zones)
+	os.queueEvent("update",textutils.serialize(info))
+end
+
+function editRange( ... )
+	term.setCursorPos(10,8)
+	local input = read()
+
+	--info.pointData[info.sel].iRange = toboolean(input)
+	os.queueEvent("update",textutils.serialize(info))
+end
+
+function editEndX( ... )
+	term.setCursorPos(8,9)
+	local input = read()
+	if (input ~= "") then
+		local b,s = string.find(input,"@max")
+		if (b or 0) > 0 then
+			local mx,my = term.getSize()
+			input = input:gsub("@max","")
+			if input:len() > 0 then
+				if type(tonumber(input)) == "number" then
+					if not ((mx + input) > mx) then
+						info.pointData[info.sel].eX = mx + input
+					end
+				end
+			else
+				info.pointData[info.sel].eX= mx
+			end
+		else
+			if type(tonumber(input)) == "number" then
+				info.pointData[info.sel].eX = input
+			end
+		end
+		
+	end
+	r,info.zones.overlapMap = ui.checkOverlapDependency(info.zones)
+	os.queueEvent("update",textutils.serialize(info))
+end
+
+function editEndY( ... )
+	term.setCursorPos(8,10)
+	local input = read()
+	if (input ~= "") then
+		local b,s = string.find(input,"@max")
+		if (b or 0) > 0 then
+			local mx,my = term.getSize()
+			input = input:gsub("@max","")
+			if input:len() > 0 then
+				if type(tonumber(input)) == "number" then
+					if not ((my + input) > my) then
+						info.pointData[info.sel].eY = my + input
+					end
+				end
+			else
+				info.pointData[info.sel].eY= my
+			end
+		else
+			if type(tonumber(input)) == "number" then
+				info.pointData[info.sel].eY = input
+			end
+		end
+		
+	end
+	r,info.zones.overlapMap = ui.checkOverlapDependency(info.zones)
+	os.queueEvent("update",textutils.serialize(info))
+end
+
+function compositer()
+	local tableFuncs = {}
+	for k,v in pairs(info.pointData) do
+		local h = fs.open(v.func,"r")
+		table.insert(tableFuncs,h.readAll())
+		h.close()
+	end
+	local string = 
+	[[
+	local ]]..info
+end
+
+function displayErrorZones()
+	term.setBackgroundColor(colors.black)
+	term.clear()
+	local primary = ui.new.hotmap()
+	local errOverlay = ui.new.hotmap()
+	for k,v in pairs(info.pointData) do
+		primary:AddPoint(v)
+	end
+	ui.sketchZones(primary)
+	for k,v in pairs(info.zones.overlapMap.points) do
+		errOverlay:AddPoint(v)
+	end
+	ui.sketchZones(errOverlay,false,true)
+	os.pullEvent()
+	os.queueEvent("update",textutils.serialize(info))
+end
+
+function showMap( ... )
+	term.setBackgroundColor(colors.black)
+	term.clear()
+	local primary = ui.new.hotmap()
+	for k,v in pairs(info.pointData) do
+		primary:AddPoint(v)
+	end
+	ui.sketchZones(primary)
+	os.pullEvent()
+	os.queueEvent("update",textutils.serialize(info))
+end
+
+function edMap()
+	info.update = true
+	os.queueEvent("update",textutils.serialize(info))
+end
+
+local mx,my = term.getSize()
+
+local sName = ui.new.hotpoint(11,4,setName,true,18,4)
+local moar = ui.new.hotpoint(1,9,confSelect,true,2,9)
+local togLess = ui.new.hotpoint(10,11,incSel)
+local togMore = ui.new.hotpoint(9,11,decSel)
+local finish = ui.new.hotpoint(mx-string.len("Finish")+1,my,compositer,true,mx,my)
+local warning = ui.new.hotpoint(10,15,displayErrorZones,true,26,15)
+local displMap = ui.new.hotpoint(1,my,showMap,true,4,my)
+warning.enabled = false
+local editMap = ui.new.hotpoint(6,y,edMap,true,14,my)
+editMap.enabled = false
+
+photmap:AddPoint(sName)
+photmap:AddPoint(moar)
+photmap:AddPoint(finish)
+photmap:AddPoint(togMore)
+photmap:AddPoint(togLess)
+photmap:AddPoint(warning)
+photmap:AddPoint(displMap)
+photmap:AddPoint(editMap)
+
+local dispMap =	ui.new.hotpoint(5,3,displayMap,true,19,3)
+local editFunc = ui.new.hotpoint(10,4,editFunction,true,21,4)
+local orgX = ui.new.hotpoint(10,6,editOrgX,true,13,6)
+local orgY = ui.new.hotpoint(10,7,editOrgY,true,13,7)
+local ranged = ui.new.hotpoint(9,8,editRange,true,14,8)
+local endX = ui.new.hotpoint(7,9,editEndX,true,10,9)
+local endY = ui.new.hotpoint(7,10,editEndY,true,10,10)
+local ptDec = ui.new.hotpoint((mx/2)-2,my,decSel,true,(mx/2),my)
+local ptInc = ui.new.hotpoint((mx/2+1),my,incSel,true,(mx/2+3),my)
+local back = ui.new.hotpoint(1,my,goBack,true,4,my)
+
+pointMap:AddPoint(dispMap)
+pointMap:AddPoint(editFunc)
+pointMap:AddPoint(orgX)
+pointMap:AddPoint(orgY)
+pointMap:AddPoint(ranged)
+pointMap:AddPoint(endX)
+pointMap:AddPoint(endY)
+pointMap:AddPoint(finish)
+pointMap:AddPoint(back)
+pointMap:AddPoint(ptInc)
+pointMap:AddPoint(ptDec)
+
+activeMap = photmap
+while true do
+	p = {os.pullEvent()}
+	--ui.sketchZones(activeMap)
+	if p[1] == "mouse_click" then
+		activeMap:CalcAction(p[3],p[4])
+	elseif p[1] == "init_update" then
+		info.count = p[2]
+		if p[4] then
+			info.warn = p[4]
+			info.errZones = textutils.unserialize(p[5])
+			info.zones = textutils.unserialize(p[6])
+			warning.enabled = true
+		end
+		info.pointData = textutils.unserialize(p[3])
+	end
+end
+
+
+--Fix depedency error after updating new size
